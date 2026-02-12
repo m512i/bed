@@ -1,0 +1,105 @@
+# Boot Event Detector - IDA Pro Plugin
+# MSVC build — run from Developer Command Prompt with: nmake /f Makefile.msvc
+
+#--------------------------------------------------------------------------
+# Configuration
+#--------------------------------------------------------------------------
+IDASDK      = C:\idasdk\idasdk90
+IDA_INSTALL = C:\Users\Shadow\Documents\tools\ida\pro
+IDA_LIB     = $(IDASDK)\lib\x64_win_vc_64\ida.lib
+# SDK version
+SDK_VER     = 900
+
+PLUGIN_NAME = boot_event_detector.dll
+BUILD_DIR   = build
+OUTPUT      = $(BUILD_DIR)\$(PLUGIN_NAME)
+
+#--------------------------------------------------------------------------
+# Compiler & linker
+#--------------------------------------------------------------------------
+CXX      = cl.exe
+LINK     = link.exe
+
+CXXFLAGS = /std:c++17 /EHa /MD /O2 /W3 \
+           /D__NT__ /D__IDP__ /DWIN32 /D_WIN32 /D__EA64__ /DNOMINMAX \
+           /DMAXSTR=1024 /DNO_TV_STREAMS \
+           /I"$(IDASDK)\include" /Iinclude
+
+LDFLAGS  = /DLL /NOLOGO /MACHINE:X64
+
+#--------------------------------------------------------------------------
+# Sources
+#--------------------------------------------------------------------------
+OBJS = \
+    $(BUILD_DIR)\plugin.obj \
+    $(BUILD_DIR)\core\event.obj \
+    $(BUILD_DIR)\core\scanner.obj \
+    $(BUILD_DIR)\core\classifier.obj \
+    $(BUILD_DIR)\core\safe_decode.obj \
+    $(BUILD_DIR)\detectors\descriptor_detector.obj \
+    $(BUILD_DIR)\detectors\pmode_detector.obj \
+    $(BUILD_DIR)\detectors\paging_detector.obj \
+    $(BUILD_DIR)\detectors\longmode_detector.obj \
+    $(BUILD_DIR)\detectors\a20_detector.obj \
+    $(BUILD_DIR)\detectors\bios_disk_detector.obj \
+    $(BUILD_DIR)\detectors\video_mode_detector.obj \
+    $(BUILD_DIR)\detectors\memmap_detector.obj \
+    $(BUILD_DIR)\detectors\segment_setup_detector.obj \
+    $(BUILD_DIR)\detectors\stage_detector.obj \
+    $(BUILD_DIR)\detectors\uefi_boot_service_detector.obj \
+    $(BUILD_DIR)\detectors\uefi_protocol_detector.obj \
+    $(BUILD_DIR)\detectors\multiboot_detector.obj \
+    $(BUILD_DIR)\detectors\pe_loader_detector.obj \
+    $(BUILD_DIR)\ui\event_chooser.obj \
+    $(BUILD_DIR)\ui\timeline_view.obj \
+    $(BUILD_DIR)\ui\graph_overlay.obj \
+    $(BUILD_DIR)\ui\stats_panel.obj \
+    $(BUILD_DIR)\ui\scan_config.obj \
+    $(BUILD_DIR)\export\json_exporter.obj \
+    $(BUILD_DIR)\export\html_exporter.obj \
+    $(BUILD_DIR)\export\diff_engine.obj
+
+#--------------------------------------------------------------------------
+# Targets
+#--------------------------------------------------------------------------
+all: dirs $(OUTPUT)
+
+dirs:
+	@if not exist $(BUILD_DIR)\core     mkdir $(BUILD_DIR)\core
+	@if not exist $(BUILD_DIR)\detectors mkdir $(BUILD_DIR)\detectors
+	@if not exist $(BUILD_DIR)\ui       mkdir $(BUILD_DIR)\ui
+	@if not exist $(BUILD_DIR)\export   mkdir $(BUILD_DIR)\export
+
+$(OUTPUT): $(OBJS)
+	$(LINK) $(LDFLAGS) /OUT:$@ /IMPLIB:$(BUILD_DIR)\boot_event_detector.lib $** "$(IDA_LIB)"
+	@echo [OK] Built $(OUTPUT)
+
+# Inference rules
+{src}.cpp{$(BUILD_DIR)}.obj:
+	$(CXX) $(CXXFLAGS) /nologo /c /Fo$@ $<
+
+{src\core}.cpp{$(BUILD_DIR)\core}.obj:
+	$(CXX) $(CXXFLAGS) /nologo /c /Fo$@ $<
+
+{src\detectors}.cpp{$(BUILD_DIR)\detectors}.obj:
+	$(CXX) $(CXXFLAGS) /nologo /c /Fo$@ $<
+
+{src\ui}.cpp{$(BUILD_DIR)\ui}.obj:
+	$(CXX) $(CXXFLAGS) /nologo /c /Fo$@ $<
+
+{src\export}.cpp{$(BUILD_DIR)\export}.obj:
+	$(CXX) $(CXXFLAGS) /nologo /c /Fo$@ $<
+
+clean:
+	@if exist $(BUILD_DIR) rmdir /s /q $(BUILD_DIR)
+
+install: $(OUTPUT)
+	@echo Installing to $(IDA_INSTALL)\plugins\ ...
+	copy /Y $(OUTPUT) "$(IDA_INSTALL)\plugins\"
+
+check-env:
+	@echo IDASDK      = $(IDASDK)
+	@echo IDA_INSTALL = $(IDA_INSTALL)
+	@echo IDA_LIB     = $(IDA_LIB)
+	@echo PLUGIN      = $(PLUGIN_NAME)
+	@echo CXX         = $(CXX)
