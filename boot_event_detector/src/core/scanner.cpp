@@ -27,6 +27,10 @@
 #include "detectors/pe_loader_detector.h"
 
 #include "core/safe_decode.h"
+#include "analysis/mode_tracker.h"
+#include "analysis/descriptor_table.h"
+#include "analysis/selector_resolver.h"
+#include "analysis/mode_timeline.h"
 
 Scanner::Scanner()
     : next_sequence_id_(0)
@@ -122,6 +126,7 @@ void Scanner::scan_all() {
     reclassify_segment_setups();
     reduce_uefi_noise();
     apply_function_context();
+    run_semantic_analysis();
 
     for (auto *evt : events_) {
         if (!evt->suppressed)
@@ -960,4 +965,54 @@ void Scanner::apply_function_context() {
             evt->compute_tier();
         }
     }
+}
+
+void Scanner::run_semantic_analysis() {
+    ModeTracker tracker;
+    tracker.run(events_);
+
+    std::vector<DescriptorTableInfo> gdts;
+    for (auto *evt : events_) {
+        if (evt->suppressed)
+            continue;
+        if (evt->type != EventType::GDT_LOAD)
+            continue;
+
+        insn_t insn;
+        if (safe_decode_insn(&insn, evt->address) <= 0)
+            continue;
+        if (insn.ops[0].type != o_mem && insn.ops[0].type != o_displ)
+            continue;
+
+        ea_t desc_ptr = insn.ops[0].addr;
+        DescriptorTableInfo gdt = DescriptorTableResolver::parse_gdt(desc_ptr);
+        if (gdt.valid()) {
+            DescriptorTableResolver::annotate(gdt, true);
+
+            for (const auto &desc : gdt.entries) {
+                if (desc.selector == 0 && desc.base == 0 && desc.limit == 0)
+                    continue;
+                char buf[128];
+                qsnprintf(buf, sizeof(buf), " [GDT#%d: %s]",
+                    desc.selector / 8, desc.summary().c_str());
+                evt->details += buf;
+            }
+
+            gdts.push_back(gdt);
+        }
+    }
+
+    SelectorResolver resolver;
+    if (!gdts.empty())
+        resolver.set_gdt(gdts.back());
+    resolver.scan_far_refs(events_);
+    resolver.enrich_events(events_);
+
+    tracker.validate_paging_sequence(events_);
+    tracker.enrich_events(events_);
+
+    ModeTimeline timeline;
+    timeline.build(tracker.get_snapshots(), gdts);
+    timeline.log();
+    timeline.add_comments();
 }

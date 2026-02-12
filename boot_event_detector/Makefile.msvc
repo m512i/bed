@@ -57,7 +57,12 @@ OBJS = \
     $(BUILD_DIR)\ui\scan_config.obj \
     $(BUILD_DIR)\export\json_exporter.obj \
     $(BUILD_DIR)\export\html_exporter.obj \
-    $(BUILD_DIR)\export\diff_engine.obj
+    $(BUILD_DIR)\export\diff_engine.obj \
+    $(BUILD_DIR)\analysis\cpu_state.obj \
+    $(BUILD_DIR)\analysis\mode_tracker.obj \
+    $(BUILD_DIR)\analysis\descriptor_table.obj \
+    $(BUILD_DIR)\analysis\selector_resolver.obj \
+    $(BUILD_DIR)\analysis\mode_timeline.obj
 
 #--------------------------------------------------------------------------
 # Targets
@@ -69,6 +74,7 @@ dirs:
 	@if not exist $(BUILD_DIR)\detectors mkdir $(BUILD_DIR)\detectors
 	@if not exist $(BUILD_DIR)\ui       mkdir $(BUILD_DIR)\ui
 	@if not exist $(BUILD_DIR)\export   mkdir $(BUILD_DIR)\export
+	@if not exist $(BUILD_DIR)\analysis mkdir $(BUILD_DIR)\analysis
 
 $(OUTPUT): $(OBJS)
 	$(LINK) $(LDFLAGS) /OUT:$@ /IMPLIB:$(BUILD_DIR)\boot_event_detector.lib $** "$(IDA_LIB)"
@@ -88,6 +94,9 @@ $(OUTPUT): $(OBJS)
 	$(CXX) $(CXXFLAGS) /nologo /c /Fo$@ $<
 
 {src\export}.cpp{$(BUILD_DIR)\export}.obj:
+	$(CXX) $(CXXFLAGS) /nologo /c /Fo$@ $<
+
+{src\analysis}.cpp{$(BUILD_DIR)\analysis}.obj:
 	$(CXX) $(CXXFLAGS) /nologo /c /Fo$@ $<
 
 clean:

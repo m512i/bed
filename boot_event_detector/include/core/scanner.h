@@ -37,6 +37,7 @@ private:
     void dedup_nearby_events();
     void reclassify_segment_setups();
     void reduce_uefi_noise();
+    void run_semantic_analysis();
 
     void scan_segment_flow(segment_t *seg);
     void scan_from(ea_t start, ea_t seg_end, std::set<ea_t> &visited);
