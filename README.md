@@ -2,6 +2,9 @@
 
 IDA Pro plugin that detects CPU mode transitions, UEFI boot services, and bootloader patterns in firmware binaries.
 
+https://github.com/user-attachments/assets/cb379d81-22fc-4556-b44b-0960d8f5988c
+
+
 ## Build
 
 ```
